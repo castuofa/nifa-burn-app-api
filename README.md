@@ -28,8 +28,6 @@ $ pip install --user poetry
 ```
 
 
-
-
 ## Development
 
 This project requires `poetry` to use in development. To start the dev server for hot reloading run
