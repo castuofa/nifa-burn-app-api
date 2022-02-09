@@ -34,6 +34,26 @@ To install poetry:
 $ pip install --user poetry
 ```
 
+Install the project dependencies
+
+```bash
+$ poetry install
+```
+
+Create the `.env` file:
+
+```bash
+cp .env.example .env
+```
+
+Run the service
+
+```bash
+$ poetry run uvicorn main:app
+```
+
+Should be able to visit - http://localhost:8000/docs
+
 
 ## Development
 
