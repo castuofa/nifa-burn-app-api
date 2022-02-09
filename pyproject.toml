@@ -8,10 +8,9 @@ license = "MIT"
 [tool.poetry.dependencies]
 python = "^3.10"
 SQLAlchemy = "1.4.29"
-ormar = "^0.10.24"
+ormar = {extras = ["postgresl"], version = "^0.10.24"}
 orjson = "^3.6.6"
 asyncpg = "^0.25.0"
-psycopg2 = "^2.9.3"
 databases = "0.5.4"
 fastapi = {extras = ["dotenv"], version = "^0.73.0"}
 uvicorn = {extras = ["standard"], version = "^0.17.4"}
