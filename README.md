@@ -2,6 +2,7 @@
 
 - MVC style service built in Python allowing for a RESTful service with scheduling (via celery)
 - built in python with FastAPI + `noaa-sdk`
+- NOAA REST API information: https://www.weather.gov/documentation/services-web-api#/
 
 ## Running the service
 
