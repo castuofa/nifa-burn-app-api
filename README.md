@@ -19,6 +19,13 @@ $ vim .env
 $ docker-compose up -d
 ```
 
+Stopping the service
+
+```bash
+$ docker-compose down
+```
+
+
 ### Poetry
 
 To install poetry:
