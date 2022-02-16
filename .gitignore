@@ -141,3 +141,4 @@ cython_debug/
 
 /app/storage
 /storage
+/windows_deps
