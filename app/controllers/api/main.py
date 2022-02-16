@@ -9,6 +9,14 @@ from fastapi import APIRouter, Request
 from noaa_sdk import NOAA
 from pydantic import BaseModel, Field
 
+# App Imports
+from app.models.noaa_grid import NOAAGridModel
+
+# Third-party imports
+from turfpy.helper import length_to_degrees
+from turfpy.misc import sector
+from geojson import Point, Feature
+
 # Router instance
 router = APIRouter()
 
@@ -88,19 +96,13 @@ def forecast(x: float = None, y: float = None, zip: str = None, hourly: bool = F
   # response_model=list[ForecastModel],
   # response_model_by_alias=False,
   description="An end point that provides access to the `forecastGridData` API data from NOAA")
-def forecast(x: float = None, y: float = None, zip: str = None):
+def forecasts(x: float = None, y: float = None):
 
   valid = x and y or zip
   if not valid:
     raise ValueError("A coordinate XY pair or zip code is required")
 
-  noaa = NOAA()
-
-  if zip:
-    return noaa.get_forecasts(zip, 'US', type='forecastGridData')
-
-  if x and y:
-    return noaa.points_forecast(x, y, type='forecastGridData')
+  return NOAA().points_forecast(x, y, type='forecastGridData')
 
 
 @router.get(
@@ -128,3 +130,93 @@ def forecast(
   if x and y:
     return noaa.get_observations_by_lat_lon(x, y, start_date.isoformat(), end_date.isoformat())
 
+
+def calculate_bearings(bearing, distance = 15):
+    bisect = distance / 2
+    start = bearing - bisect
+    end = bearing + bisect
+
+    if 0 <= bearing <= start <= 360:
+        start = start
+    else:
+        start += 360
+
+    if 0 <= bearing <= end <= 360:
+        end = end
+    else:
+        end -= 360
+
+    return start, end
+
+
+@router.get(
+    '/wind_direction/{x}/{y}',
+    description="Returns a GeoJSON of hourly wind direction features for next six hours",
+    # response_model=NOAAGridModel
+)
+async def wind_direction(
+    x: float,
+    y: float,
+    shed_angle: int = 30,
+    shed_distance: int = 10,
+    num_hours: int = 12
+):
+    noaa = NOAA()
+
+    # Get expected radius
+    point = Feature(geometry=Point((y, x,)))
+
+    # Collect wind direction(s)
+    # Calculate circular sector from vector (x,y,direction)
+
+    grid_model = NOAAGridModel.parse_obj(
+        noaa.points_forecast(x, y, hourly=True, type='forecastGridData')
+    )
+
+    # return [
+    #     grid_model.properties.wind_direction,
+    #     grid_model.properties.wind_speed
+    # ]
+
+    # return grid_model
+    speeds = {}
+    intervals = {}
+
+    count = 0
+
+    for val in grid_model.properties.wind_speed.values:
+        for date_obj in val.valid_time:
+            if count >= num_hours:
+                break
+            speeds[date_obj] = val.value
+            count += 1
+        if count >= num_hours:
+            break
+
+    hourly_iteration = 1
+    count = 0
+
+    for val in grid_model.properties.wind_direction.values:
+        for date_obj in val.valid_time:
+            bearing = val.value
+            start_bearing, end_bearing = calculate_bearings(bearing, shed_angle)
+            sector_feature = sector(
+                point,
+                shed_distance,
+                start_bearing,
+                end_bearing,
+                options = {"units": "mi", "steps": 500}
+            )
+            intervals[date_obj] = {
+                "wind_direction": val.value,
+                "wind_sector_15deg": sector_feature,
+                "wind_speed": speeds.get(date_obj, None)
+            }
+            hourly_iteration += 1
+            count += 1
+            if count >= num_hours:
+                break
+        if count >= num_hours:
+            break
+
+    return intervals
