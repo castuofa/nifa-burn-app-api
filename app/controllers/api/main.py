@@ -11,11 +11,11 @@ from pydantic import BaseModel, Field
 
 # App Imports
 from app.models.noaa_grid import NOAAGridModel
+from app.models.wind_shed import WindShedCollection
 
 # Third-party imports
-from turfpy.helper import length_to_degrees
 from turfpy.misc import sector
-from geojson import Point, Feature
+from geojson import Point, Feature, FeatureCollection
 
 # Router instance
 router = APIRouter()
@@ -136,7 +136,7 @@ def calculate_bearings(bearing, distance = 15):
     start = bearing - bisect
     end = bearing + bisect
 
-    if 0 <= bearing <= start <= 360:
+    if 0 <= start <= bearing <= 360:
         start = start
     else:
         start += 360
@@ -152,7 +152,7 @@ def calculate_bearings(bearing, distance = 15):
 @router.get(
     '/wind_direction/{x}/{y}',
     description="Returns a GeoJSON of hourly wind direction features for next six hours",
-    # response_model=NOAAGridModel
+    response_model=WindShedCollection
 )
 async def wind_direction(
     x: float,
@@ -166,19 +166,10 @@ async def wind_direction(
     # Get expected radius
     point = Feature(geometry=Point((y, x,)))
 
-    # Collect wind direction(s)
-    # Calculate circular sector from vector (x,y,direction)
-
     grid_model = NOAAGridModel.parse_obj(
         noaa.points_forecast(x, y, hourly=True, type='forecastGridData')
     )
 
-    # return [
-    #     grid_model.properties.wind_direction,
-    #     grid_model.properties.wind_speed
-    # ]
-
-    # return grid_model
     speeds = {}
     intervals = {}
 
@@ -196,6 +187,8 @@ async def wind_direction(
     hourly_iteration = 1
     count = 0
 
+    features = []
+
     for val in grid_model.properties.wind_direction.values:
         for date_obj in val.valid_time:
             bearing = val.value
@@ -207,11 +200,13 @@ async def wind_direction(
                 end_bearing,
                 options = {"units": "mi", "steps": 500}
             )
-            intervals[date_obj] = {
+            sector_feature["properties"] = {
+                "hourly_interval": date_obj,
                 "wind_direction": val.value,
-                "wind_sector_15deg": sector_feature,
                 "wind_speed": speeds.get(date_obj, None)
             }
+            # intervals[date_obj] = sector_feature
+            features.append(sector_feature)
             hourly_iteration += 1
             count += 1
             if count >= num_hours:
@@ -219,4 +214,4 @@ async def wind_direction(
         if count >= num_hours:
             break
 
-    return intervals
+    return FeatureCollection(features)
