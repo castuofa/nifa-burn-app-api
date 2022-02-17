@@ -150,11 +150,11 @@ def calculate_bearings(bearing, distance = 15):
 
 
 @router.get(
-    '/wind_direction/{x}/{y}',
-    description="Returns a GeoJSON of hourly wind direction features for next six hours",
+    '/wind_shed/{x}/{y}',
+    description="Returns a GeoJSON of hourly wind shed features for next six hours",
     response_model=WindShedCollection
 )
-async def wind_direction(
+async def wind_shed(
     x: float,
     y: float,
     shed_angle: int = 30,
