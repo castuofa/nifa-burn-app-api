@@ -18,6 +18,7 @@ noaa-sdk = "^0.1.20"
 Shapely = "^1.8.0"
 scipy = "^1.8.0"
 turfpy = "^0.0.7"
+OSMPythonTools = "^0.3.3"
 
 [tool.poetry.dev-dependencies]
 black = "^22.1.0"
