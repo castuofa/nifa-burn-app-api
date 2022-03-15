@@ -8,7 +8,7 @@ license = "MIT"
 [tool.poetry.dependencies]
 python = ">=3.10,<3.11"
 SQLAlchemy = "1.4.29"
-ormar = {extras = ["postgresl"], version = "^0.10.24"}
+ormar = {extras = ["orjson"], version = "^0.10.25"}
 orjson = "^3.6.6"
 asyncpg = "^0.25.0"
 databases = "0.5.4"
@@ -21,6 +21,8 @@ turfpy = "^0.0.7"
 OSMPythonTools = "^0.3.3"
 aiohttp = "^3.8.1"
 aiodns = "^3.0.0"
+APScheduler = "^3.9.1"
+psycopg2-binary = "^2.9.3"
 
 [tool.poetry.dev-dependencies]
 black = "^22.1.0"
