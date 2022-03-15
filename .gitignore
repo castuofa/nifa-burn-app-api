@@ -139,6 +139,5 @@ cython_debug/
 /.vscode
 /frontend/.vscode
 
-/app/storage
-/storage
+/app/storage/logs/*
 /windows_deps

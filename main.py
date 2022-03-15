@@ -7,6 +7,7 @@ from fastapi import FastAPI
 from app.routes import api_router, web_router
 from app.config import Config
 
+
 config = Config()
 
 # Main App

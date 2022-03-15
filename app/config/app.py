@@ -1,4 +1,4 @@
-from os import path
+from pathlib import Path
 from pydantic import BaseSettings
 
 
@@ -22,7 +22,9 @@ class AppSettings(BaseSettings):
     JWT_TOKEN_PREFIX = "Token"
     ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7  # one week
 
-    STORAGE: str = f"{path.dirname(path.abspath(__file__))}/storage"
+    # Global paths
+    LOGS: str = str(Path("./app/logs"))
+    STORAGE: str = str(Path("./app/storage"))
 
     class Config:
         """
