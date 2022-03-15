@@ -11,3 +11,16 @@ services:
       - ./:/usr/src
     env_file:
       - .env
+
+  postgis:
+    image: kartoza/postgis
+    volumes:
+      - nifa-postgis-data:/var/lib/postgresql
+      - nifa-dbbackups:/backups
+    ports:
+      - 35432:5432
+    restart: on-failure
+    healthcheck:
+      test: "exit 0"
+    env_file:
+      - .env
