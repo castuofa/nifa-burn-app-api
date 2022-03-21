@@ -672,3 +672,45 @@ class NOAAGridModel(BaseModel):
     type: str
     geometry: Geometry
     properties: Properties
+
+    @classmethod
+    def from_response(cls, json_response: dict, station_id: str):
+        grid_model = cls.parse_obj(json_response)
+
+        speeds = {}
+
+        features = []
+
+        count = 0
+        num_hours = 48
+
+        for val in grid_model.properties.wind_speed.values:
+            for date_obj in val.valid_time:
+                if count >= num_hours:
+                    break
+                speeds[date_obj] = val.value
+                count += 1
+            if count >= num_hours:
+                break
+
+        hourly_iteration = 1
+        count = 0
+
+        for val in grid_model.properties.wind_direction.values:
+            for date_obj in val.valid_time:
+                noaa_hourly_forecast = {
+                    "grid_id": station_id,
+                    "hourly_interval": date_obj,
+                    "wind_direction": val.value,
+                    "wind_speed": speeds.get(date_obj, None)
+                }
+                # intervals[date_obj] = sector_feature
+                features.append(noaa_hourly_forecast)
+                hourly_iteration += 1
+                count += 1
+                if count >= num_hours:
+                    break
+            if count >= num_hours:
+                break
+
+        return features

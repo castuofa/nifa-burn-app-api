@@ -5,6 +5,7 @@ import geojson
 import aiohttp
 from app import storage
 from app.models.geom import GeometryType
+from app.models.noaa_grid import NOAAGridModel
 from app.models.noaa_stations import NoaaStations
 from app.database.connection import database
 from app import Log
@@ -37,8 +38,14 @@ class NOAA_ForecastCollector(Task):
         time_check = datetime.now() - timedelta(hours=12)
         stations = await NoaaStations.objects.filter(
             collected_at__lte = time_check
-        ).all()
-        print(len(stations))
+        ).first()
+
+        # for station in stations:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(stations.forecast_grid_data_url) as response:
+                print(NOAAGridModel.from_response(await response.json(), station_id=stations.grid_id))
+
+
         await database.disconnect()
 
     @classmethod
