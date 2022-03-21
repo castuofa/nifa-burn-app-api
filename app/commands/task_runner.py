@@ -40,7 +40,7 @@ class RunTask(BaseCommand):
         }
     ]
 
-    available_tasks = tasks.REGISTERED_TASKS
+    available_tasks = tasks.REGISTERED_TASKS + tasks.SCHEDULED_TASKS
 
     def handle(self):
 
@@ -53,7 +53,7 @@ class RunTask(BaseCommand):
         else:
             task = list(
                 filter(
-                    lambda task: task["task"].name == self.args.task_name,
+                    lambda task: task["task"].signature == self.args.task_name,
                     self.available_tasks
                 )
             )
@@ -63,7 +63,7 @@ class RunTask(BaseCommand):
                 asyncio.run(task_instance.handle())
             else:
                 print(
-                    f"Task name {self.args.task_name} does not exist or is not enabled")
+                    f"Task signature {self.args.task_name} does not exist or is not enabled")
 
 
 class ListTask(BaseCommand):
