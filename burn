@@ -3,20 +3,53 @@
 import argparse
 from app.commands import REGISTERED_COMMANDS
 
+
+INTERACTIVE_COMMANDS = ["tinker"]
+
+
 # Collect registered commands
-commands_available = list(map(lambda x: x.command, REGISTERED_COMMANDS))
+commands_available = (
+    list(map(lambda x: x.command, REGISTERED_COMMANDS)) + INTERACTIVE_COMMANDS
+)
 
 parser = argparse.ArgumentParser()
 parser.add_argument(
-    "command", help="Run command by function name", choices=commands_available)
+    "command", help="Run command by function name", choices=commands_available
+)
 
 parsed, optional = parser.parse_known_args()
 
+
+def run_interactive():
+    import nest_asyncio
+    from traitlets.config import Config
+
+    conf = Config()
+    conf.InteractiveShellApp.exec_lines = [
+        "from app.database.connection import database as DB",
+        "from app.models import *",
+        "await DB.connect()",
+        'print("------------------------------------")',
+        'print("------- Welcome to Burn API --------")',
+        'print("------------------------------------")',
+    ]
+
+    nest_asyncio.apply()
+
+    from IPython import start_ipython
+
+    start_ipython(argv=[], using="asyncio", config=conf)
+
+
 if __name__ == "__main__":
     if parsed.command:
-        command = list(filter(lambda x: x.command ==
-                              parsed.command, REGISTERED_COMMANDS))[0]
-        if not command:
-            raise ValueError(f"Command {parsed.command} does not exist")
+        if parsed.command == "tinker":
+            run_interactive()
+        else:
+            command = list(
+                filter(lambda x: x.command == parsed.command, REGISTERED_COMMANDS)
+            )[0]
+            if not command:
+                raise ValueError(f"Command {parsed.command} does not exist")
 
-        command(parser).handle()
+            command(parser).handle()

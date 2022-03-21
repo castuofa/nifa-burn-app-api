@@ -23,9 +23,13 @@ aiohttp = "^3.8.1"
 aiodns = "^3.0.0"
 APScheduler = "^3.9.1"
 psycopg2-binary = "^2.9.3"
+alembic = "^1.7.7"
+GeoAlchemy2 = "^0.11.1"
 
 [tool.poetry.dev-dependencies]
 black = "^22.1.0"
+nest-asyncio = "^1.5.4"
+ipython = "^8.1.1"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
