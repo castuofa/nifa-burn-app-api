@@ -65,4 +65,6 @@ $ poetry run uvicorn main:app --reload
 ```
 
 
-
+for lat in np.arange(latmin, latmax, resolution):
+for lon in np.arange(lonmin, lonmax, resolution):
+points.append(Point((round(lat,4), round(lon,4))))

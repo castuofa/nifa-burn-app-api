@@ -25,7 +25,7 @@ storage("logs").mkdir(775, exist_ok=True)
 logging.basicConfig(
     filename=str(storage("logs/backend.log")),
     format="%(asctime)s %(message)s",
-    filemode="w",
+    filemode="a+",
 )
 
 # Creating an object
