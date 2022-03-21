@@ -3,11 +3,14 @@
 #   timestamp: 2022-02-16T15:31:57+00:00
 
 from __future__ import annotations
+import json
 
 from typing import Any, List, Optional, Union
 from datetime import datetime, timedelta
 
 from pydantic import BaseModel, Field, validator
+
+from app.models.noaa_forecasts import HourlyForecast
 
 
 class _ContextItem(BaseModel):
@@ -672,9 +675,11 @@ class NOAAGridModel(BaseModel):
     type: str
     geometry: Geometry
     properties: Properties
+    forecasts: Union[HourlyForecast, None] = None
 
     @classmethod
     def from_response(cls, json_response: dict, station_id: str):
+
         grid_model = cls.parse_obj(json_response)
 
         speeds = {}
@@ -699,13 +704,13 @@ class NOAAGridModel(BaseModel):
         for val in grid_model.properties.wind_direction.values:
             for date_obj in val.valid_time:
                 noaa_hourly_forecast = {
-                    "grid_id": station_id,
-                    "hourly_interval": date_obj,
+                    "station": station_id,
+                    "timestamp": date_obj,
                     "wind_direction": val.value,
                     "wind_speed": speeds.get(date_obj, None)
                 }
                 # intervals[date_obj] = sector_feature
-                features.append(noaa_hourly_forecast)
+                features.append(HourlyForecast.parse_obj(noaa_hourly_forecast))
                 hourly_iteration += 1
                 count += 1
                 if count >= num_hours:
@@ -713,4 +718,5 @@ class NOAAGridModel(BaseModel):
             if count >= num_hours:
                 break
 
-        return features
+        grid_model.forecasts = features
+        return grid_model

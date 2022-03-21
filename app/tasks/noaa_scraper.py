@@ -1,10 +1,10 @@
 from datetime import datetime, timedelta
-import json
 import geojson
+import ormar
+from pydantic import ValidationError
 
 import aiohttp
 from app import storage
-from app.models.geom import GeometryType
 from app.models.noaa_grid import NOAAGridModel
 from app.models.noaa_stations import NoaaStations
 from app.database.connection import database
@@ -38,13 +38,25 @@ class NOAA_ForecastCollector(Task):
         time_check = datetime.now() - timedelta(hours=12)
         stations = await NoaaStations.objects.filter(
             collected_at__lte = time_check
-        ).first()
+        ).all()
 
         # for station in stations:
         async with aiohttp.ClientSession() as session:
-            async with session.get(stations.forecast_grid_data_url) as response:
-                print(NOAAGridModel.from_response(await response.json(), station_id=stations.grid_id))
-
+            for station in stations:
+                async with session.get(station.forecast_grid_data_url) as response:
+                    try:
+                        grid_model = NOAAGridModel.from_response(await response.json(), station_id=station.grid_id)
+                    except ValidationError:
+                        Log.error(f"Bad return: {station.grid_id} | {station.forecast_grid_data_url}")
+                        continue
+                    for forecast in grid_model.forecasts:
+                        try:
+                            await forecast.load()
+                            await forecast.update()
+                        except ormar.exceptions.NoMatch:
+                            await forecast.save()
+                        finally:
+                            await forecast.station.update()
 
         await database.disconnect()
 

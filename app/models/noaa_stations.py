@@ -23,7 +23,7 @@ class NoaaStations(ormar.Model):
     )
 
     class Meta(BaseMeta):
-        pass
+        tablename = "noaa_stations"
 
     @classmethod
     async def from_response(cls, data: dict):

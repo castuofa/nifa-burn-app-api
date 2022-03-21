@@ -24,7 +24,7 @@ SCHEDULED_TASKS = [
         'task': NOAA_ForecastCollector,
         'settings': {
             'trigger': 'interval',
-            'minutes': 1
+            'minutes': 30
         }
     }
 ]
