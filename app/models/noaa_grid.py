@@ -47,10 +47,13 @@ def parse_hours_from_interval(hour_str) -> int:
         start = hour_str[1]
         end = hour_str[-1]
         hours = 0
-        if 'M' and 'S' in hour_str:
+        if 'M' in hour_str and 'S' in hour_str:
             # Example: PT1H50M49S
             # Round up in this case
-            hours = int(hour_str[hour_str.index('T') + 1:hour_str.index('H')]) + 1
+            if 'H' in hour_str and 'T' in hour_str:
+                hours = int(hour_str[hour_str.index('T') + 1:hour_str.index('H')]) + 1
+            else:
+                hours = 1
             # raise ValueError(f"Can't parse {hour_str}")
         elif start == 'T':
             # these are hourly intervals
@@ -426,8 +429,8 @@ class TwentyFootWindSpeed(BaseModel):
     class Config:
         allow_population_by_field_name = True
 
-    uom: str
-    values: List[Value23]
+    uom: Optional[str] = None
+    values: List[Value23] = None
 
 
 class Value24(MeasuredValueAtInterval):
@@ -438,8 +441,8 @@ class TwentyFootWindDirection(BaseModel):
     class Config:
         allow_population_by_field_name = True
 
-    uom: str
-    values: List[Value24]
+    uom: Optional[str] =  None
+    values: List[Value24] = None
 
 
 class WaveHeight(SnowLevel):
@@ -692,7 +695,11 @@ class NOAAGridModel(BaseModel):
     @classmethod
     def from_response(cls, json_response: dict, station_id: str):
 
+        # try:
         grid_model = cls.parse_obj(json_response)
+        # except ValueError as exc:
+            # Log.info(f"{json_response}")
+            # raise exc
 
         speeds = {}
 

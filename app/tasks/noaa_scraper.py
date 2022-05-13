@@ -20,7 +20,7 @@ class Task:
     def __init__(self, *args, **kwargs):
         Log.info(f"Starting {self.signature}")
 
-    async def handle(self):
+    async def handle(self, loop=None):
         pass
 
     @classmethod
@@ -36,10 +36,14 @@ async def get_forecast(session, station, retry=False):
     async with session.get(station.forecast_grid_data_url, headers=headers) as response:
         try:
             json_data = await response.json()
+
+            if json_data.get("status", None) == 500:
+                raise ValueError(f"Bad return: {json_data.get('detail', None)}")
+
             grid_model = NOAAGridModel.from_response(
                 json_data, station_id=station.grid_id
             )
-        except ValidationError as exc:
+        except (ValueError, ValidationError) as exc:
             Log.error(exc)
 
             Log.error(
@@ -59,36 +63,49 @@ class NOAA_ForecastCollector(Task):
 
     description: str = "Collect forecast data from all stations"
 
-    async def handle(self):
+    async def collect_and_process(self, session, station):
+        grid_model = None
+
+        retry_count = 0
+        while not grid_model:
+            grid_model = await get_forecast(session, station, retry=retry_count)
+            retry_count += 1
+            if not grid_model:
+                await asyncio.sleep(0.1)
+            if retry_count >= 10:
+                break
+
+        if not grid_model:
+            return None
+
+        forecast_count = 0
+        Log.info(f"Saving forecasts...")
+        for forecast in grid_model.forecasts:
+            try:
+                await forecast.load()
+                await forecast.update()
+            except ormar.exceptions.NoMatch:
+                await forecast.save()
+            finally:
+                await forecast.station.update()
+            forecast_count += 1
+        Log.info(f"{forecast_count} forecasts saved successfully")
+
+        return None
+
+
+    async def handle(self, loop=None):
         await database.connect()
         time_check = datetime.now() - timedelta(hours=12)
         stations = await NoaaStations.objects.filter(collected_at__lte=time_check).all()
+        async with aiohttp.ClientSession(loop=loop) as session:
+            requests = []
 
-        for station in stations:
+            for station in stations:
 
-            grid_model = None
+                requests.append(loop.create_task(self.collect_and_process(session, station)))
 
-            retry_count = 0
-            while not grid_model:
-                async with aiohttp.ClientSession() as session:
-                    grid_model = await get_forecast(session, station, retry=retry_count)
-                retry_count += 1
-                if not grid_model:
-                    await asyncio.sleep(0.1)
-                if retry_count >= 10:
-                    break
-
-            if not grid_model:
-                continue
-
-            for forecast in grid_model.forecasts:
-                try:
-                    await forecast.load()
-                    await forecast.update()
-                except ormar.exceptions.NoMatch:
-                    await forecast.save()
-                finally:
-                    await forecast.station.update()
+            await asyncio.gather(*requests, return_exceptions=True)
 
         await database.disconnect()
 
@@ -102,9 +119,9 @@ class NOAA_GridUpdater(Task):
 
     signature: str = "noaa.grid_update"
 
-    description: str = "Update relevant grid points based on their timestamp"
+    description: str = "Update relevant grid points based on their timestamp. Only useful when first adding grid stations"
 
-    async def handle(self):
+    async def handle(self, loop=None):
         await database.connect()
 
         stations = await NoaaStations.objects.filter(collected_at=None).all()
