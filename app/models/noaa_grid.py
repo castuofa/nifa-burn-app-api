@@ -8,8 +8,9 @@ import json
 from typing import Any, List, Optional, Union
 from datetime import datetime, timedelta
 
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, ValidationError, validator
 
+from app import Log
 from app.models.noaa_forecasts import HourlyForecast
 
 
@@ -39,23 +40,34 @@ class Elevation(BaseModel):
 
 
 def parse_hours_from_interval(hour_str) -> int:
+    try:
+        if hour_str[0] != 'P':
+            raise ValueError(f"{hour_str} must start with 'P'")
 
-    if hour_str[0] != 'P':
-        raise ValueError(f"{hour_str} must start with 'P'")
-    start = hour_str[1]
-    end = hour_str[-1]
-    if start == 'T':
-        # these are hourly intervals
-        hours = int(hour_str[hour_str.index('T') + 1:hour_str.index('H')])
-    elif end == 'D':
-        hours = int(hour_str[1:hour_str.index('D')]) * 24
-    elif 'T' and 'D' in hour_str:
-        hours = int(hour_str[1:hour_str.index('D')]) * 24
-        hours += int(hour_str[hour_str.index('T') + 1:hour_str.index('H')])
+        start = hour_str[1]
+        end = hour_str[-1]
+        hours = 0
+        if 'M' and 'S' in hour_str:
+            # Example: PT1H50M49S
+            # Round up in this case
+            hours = int(hour_str[hour_str.index('T') + 1:hour_str.index('H')]) + 1
+            # raise ValueError(f"Can't parse {hour_str}")
+        elif start == 'T':
+            # these are hourly intervals
+            hours = int(hour_str[hour_str.index('T') + 1:hour_str.index('H')])
+        elif end == 'D':
+            hours = int(hour_str[1:hour_str.index('D')]) * 24
+        elif 'T' and 'D' in hour_str:
+            hours = int(hour_str[1:hour_str.index('D')]) * 24
+            hours += int(hour_str[hour_str.index('T') + 1:hour_str.index('H')])
+        else:
+            raise ValueError(f"can't parse unexpected {hour_str}")
+    except ValueError as exc:
+        Log.info(hour_str)
+        Log.error(exc)
+        raise exc
     else:
-        raise ValueError(f"can't parse unexpected {hour_str}")
-
-    return hours
+        return hours
 
 
 class MeasuredValueAtInterval(BaseModel):
@@ -684,10 +696,26 @@ class NOAAGridModel(BaseModel):
 
         speeds = {}
 
+        humidity = {}
         features = []
 
         count = 0
         num_hours = 48
+
+        try:
+            for val in grid_model.properties.relative_humidity.values:
+                for date_obj in val.valid_time:
+                    if count >= num_hours:
+                        break
+                    humidity[date_obj] = val.value
+                    count += 1
+                if count >= num_hours:
+                    break
+        except Exception as exc:
+            Log.error(exc)
+            raise exc
+
+        count = 0
 
         for val in grid_model.properties.wind_speed.values:
             for date_obj in val.valid_time:
@@ -707,7 +735,8 @@ class NOAAGridModel(BaseModel):
                     "station": station_id,
                     "timestamp": date_obj,
                     "wind_direction": val.value,
-                    "wind_speed": speeds.get(date_obj, None)
+                    "wind_speed": speeds.get(date_obj, None),
+                    "relative_humidity": humidity.get(date_obj, None)
                 }
                 # intervals[date_obj] = sector_feature
                 features.append(HourlyForecast.parse_obj(noaa_hourly_forecast))

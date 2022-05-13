@@ -15,6 +15,7 @@ class HourlyForecast(ormar.Model):
     timestamp: datetime = ormar.DateTime()
     wind_direction: int = ormar.Integer()
     wind_speed: float = ormar.Float()
+    relative_humidity: int = ormar.Integer()
     collected_at: Union[datetime, None] = ormar.DateTime(nullable=True, default=datetime.now)
 
     @root_validator(pre=True)
