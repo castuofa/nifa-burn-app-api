@@ -80,5 +80,5 @@ class ListTask(BaseCommand):
 
     def handle(self):
         for task in self.available_tasks:
-            print(f"{task['task'].name} | {task['task'].description}")
+            print(f"{task['task'].signature} | {task['task'].description}")
 

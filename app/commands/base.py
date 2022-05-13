@@ -1,3 +1,6 @@
+import sys
+import logging
+
 import app
 # from app.database.base import Connection
 
@@ -49,6 +52,12 @@ class BaseCommand:
             parser) if parser else None
 
         self.log = logger or app.Log
+
+        streamHandler = logging.StreamHandler(sys.stdout)
+        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        streamHandler.setFormatter(formatter)
+
+        self.log.addHandler(streamHandler)
         self.log.info(f"Starting command: {self.__class__.name}")
 
     def handle(self):
