@@ -140,37 +140,52 @@ class NOAA_Grid(Task):
 
     def __init__(self):
         super().__init__()
+        self.errored = 0
         with self.json_file_path.open("r") as raw_file:
             self.file_data = geojson.load(raw_file)
         self.total = 0
         self.expected = len(self.file_data["features"])
         Log.info(f"Expecting: {self.expected }")
 
-    async def handle(self):
+    async def collect_and_process(self, session, url):
+        try:
+            station_data = await self.get_point(
+                session, url
+            )
+        except ValueError as exc:
+            Log.error(exc)
+            self.errored += 1
+        else:
+            await NoaaStations.from_response(station_data)
+
+        self.total += 1
+        Log.info(f"{self.total}/{self.expected} Completed from: {url}")
+
+    async def handle(self, loop=None):
+        loop = asyncio.get_running_loop() if not loop else loop
+
         await database.connect()
         points = map(
             lambda obj: obj["geometry"]["coordinates"], self.file_data["features"]
         )
-        async with aiohttp.ClientSession() as session:
+
+        async with aiohttp.ClientSession(loop=loop) as session:
+
+            request_list = []
+
             for _, pnt in enumerate(points):
 
-                try:
-                    url = self.base_url.format(pnt[1], pnt[0])
+                url = self.base_url.format(pnt[1], pnt[0])
 
-                    station_data = await self.get_point(
-                        session, url
-                    )
-                except ValueError:
-                    continue
+                request_list.append(loop.create_task(self.collect_and_process(session, url)))
 
-                self.total += 1
-
-                await NoaaStations.from_response(station_data)
-
-                Log.info(f"{self.total}/{self.expected} Completed from: {url}")
+            Log.info(f"Sending requests...")
+            await asyncio.gather(*request_list, return_exceptions=True)
 
         await database.disconnect()
         Log.info(f"Collected {self.total} of {self.expected}")
+        if self.errored > 0:
+            Log.error(f"Unable to collect from {self.errored} urls")
 
     @staticmethod
     async def get_point(session, url):
@@ -178,7 +193,7 @@ class NOAA_Grid(Task):
         async with session.get(url) as response:
             json_response = await response.json()
             if json_response.get("status", 200) == 500:
-                raise ValueError("API Failure")
+                raise ValueError(f"API Failure {url}")
             station_data = json_response.get("properties")
 
         grid_url = station_data.get("forecastGridData")

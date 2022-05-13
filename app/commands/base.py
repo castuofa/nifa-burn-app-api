@@ -47,10 +47,11 @@ class BaseCommand:
 
     # input_directory: str = None
 
-    def __init__(self, parser: ArgumentParser, logger=None):
+    def __init__(self, parser: ArgumentParser, logger=None, loop=None):
         self.args = self.parse_arguments(
             parser) if parser else None
 
+        self.loop = loop
         self.log = logger or app.Log
 
         streamHandler = logging.StreamHandler(sys.stdout)

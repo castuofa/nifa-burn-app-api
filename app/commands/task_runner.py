@@ -60,7 +60,10 @@ class RunTask(BaseCommand):
 
             if task:
                 task_instance = task[-1]["task"]()
-                asyncio.run(task_instance.handle())
+                if self.loop:
+                    self.loop.run_until_complete(task_instance.handle(self.loop))
+                else:
+                    asyncio.run(task_instance.handle())
             else:
                 print(
                     f"Task signature {self.args.task_name} does not exist or is not enabled")
