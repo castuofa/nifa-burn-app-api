@@ -65,6 +65,70 @@ $ poetry run uvicorn main:app --reload
 ```
 
 
-for lat in np.arange(latmin, latmax, resolution):
-for lon in np.arange(lonmin, lonmax, resolution):
-points.append(Point((round(lat,4), round(lon,4))))
+## Running the Scheduler
+
+The scheduled tasks are run using APScheduler and the AsyncIOScheduler class. This scheduler is used to extract, transform, and load (ETL) NOAA data.
+
+In order to register a scheduled task, insert a settings dict in `app/tasks/__init__.py` under `SCHEDULED_TASKS`
+
+Executing the scheduler can be down with docker:
+
+```bash
+$ docker build -t burn-api
+$ docker run --rm -it --name burn-api burn-api python scheduler.py
+```
+
+This will also report INFO level logs to the console.
+
+
+## Running a Command
+
+There is a CLI interface that allows you to manually run a `REGISTERED_TASK` as needed. These are also defined in `app/tasks/__init__.py`.
+
+Depending on the `Task.signature`, the command can run the task using:
+
+```bash
+$ docker build -t burn-api
+$ docker run --rm -it --name burn-api burn-api python burn task:run -t "<task.name>"
+```
+
+Or in poetry:
+
+```bash
+poetry run python burn task:run -t "<task.name>"
+```
+
+To list all registered tasks you can run:
+
+```bash
+$ docker build -t burn-api
+$ docker run --rm -it --name burn-api burn-api python burn task:list
+```
+
+Or in poetry:
+
+```bash
+poetry run python burn task:list
+```
+
+
+## Interactive Mode
+
+This is provided mostly for development convenience. It allows you to drop into an IPython interface with top-level access to asyncio, an active database connection, and the models already imported
+
+In poetry:
+
+```bash
+poetry run python burn tinker
+```
+
+In docker:
+
+```bash
+$ docker run --rm -it --name burn-api burn-api python burn tinker
+```
+
+The name `tinker` is borrowed from a similar command in Laravel's artisan CLI
+
+
+
