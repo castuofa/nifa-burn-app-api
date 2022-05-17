@@ -21,7 +21,7 @@ class Task:
         Log.info(f"Starting {self.signature}")
 
     async def handle(self, loop=None):
-        pass
+        Log.info("Should not see this")
 
     @classmethod
     async def runner(cls):
@@ -46,14 +46,14 @@ async def get_forecast(session, station, retry=False):
         except (ValueError, ValidationError) as exc:
             Log.error(exc)
 
-            Log.error(
-                f"TRY {retry} Bad return: {station.grid_id} | {station.forecast_grid_data_url}"
-            )
+            # Log.error(
+            #     f"TRY {retry} Bad return: {station.grid_id} | {station.forecast_grid_data_url}"
+            # )
             return None
         else:
-            Log.info(
-                f"TRY {retry} Success: {station.grid_id} | {station.forecast_grid_data_url}"
-            )
+            # Log.info(
+            #     f"TRY {retry} Success: {station.grid_id} | {station.forecast_grid_data_url}"
+            # )
             return grid_model
 
 
@@ -73,6 +73,7 @@ class NOAA_ForecastCollector(Task):
             if not grid_model:
                 await asyncio.sleep(0.1)
             if retry_count >= 10:
+                Log.info(f"Missed: {station}")
                 break
 
         if not grid_model:
@@ -95,19 +96,34 @@ class NOAA_ForecastCollector(Task):
 
 
     async def handle(self, loop=None):
+        Log.info(f"{self.signature}: Running hanlder")
+
+        loop = loop if loop else asyncio.get_running_loop()
+
         await database.connect()
         time_check = datetime.now() - timedelta(hours=12)
         stations = await NoaaStations.objects.filter(collected_at__lte=time_check).all()
         async with aiohttp.ClientSession(loop=loop) as session:
+            Log.info(f"{self.signature}: collecting requests...")
             requests = []
 
             for station in stations:
 
                 requests.append(loop.create_task(self.collect_and_process(session, station)))
 
-            await asyncio.gather(*requests, return_exceptions=True)
+                if len(requests) >= 20:
+                    Log.info(f"{self.signature}: starting {len(requests)} requests...")
+                    results = await asyncio.gather(*requests, return_exceptions=True)
+                    Log.info(f"{results}")
+                    requests = []
+
+            if requests:
+                Log.info(f"{self.signature}: starting {len(requests)} requests...")
+                results = await asyncio.gather(*requests, return_exceptions=True)
+                Log.info(f"{results}")
 
         await database.disconnect()
+        Log.info(f"{self.signature}: Completed handler")
 
     @classmethod
     async def runner(cls):
@@ -119,7 +135,7 @@ class NOAA_GridUpdater(Task):
 
     signature: str = "noaa.grid_update"
 
-    description: str = "Update relevant grid points based on their timestamp. Only useful when first adding grid stations"
+    description: str = "Update relevant grid points based on their timestamp."
 
     async def handle(self, loop=None):
         await database.connect()

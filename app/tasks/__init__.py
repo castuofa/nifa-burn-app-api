@@ -24,7 +24,21 @@ SCHEDULED_TASKS = [
         'task': NOAA_ForecastCollector,
         'settings': {
             'trigger': 'interval',
-            'minutes': 30
+            'minutes': 5
+        }
+    },
+    {
+        'task': NOAA_Grid,
+        'settings': {
+            'trigger': 'interval',
+            'days': 10
+        }
+    },
+    {
+        'task': NOAA_GridUpdater,
+        'settings': {
+            'trigger': 'interval',
+            'days': 10
         }
     }
 ]
@@ -39,10 +53,14 @@ SCHEDULER = AsyncIOScheduler(
 
 def start():
 
+    Log.info("Initializing Scheduler...")
+
     TASK_STORE['default'].remove_all_jobs()
     SCHEDULER.remove_all_jobs()
 
     for task in SCHEDULED_TASKS:
+
+        Log.info(f"Add task {task}")
 
         signature = task['settings']['id'] = task['task'].signature
 
@@ -55,4 +73,7 @@ def start():
                 Log.error(exc)
 
     SCHEDULER.start()
+
+    Log.info("Scheduler started ...")
+
     return SCHEDULER

@@ -1,6 +1,10 @@
+import sys
+import logging
 import asyncio
 from app import Log
 from app.tasks import start
+
+Log.addHandler(logging.StreamHandler(sys.stdout))
 
 
 if __name__ == "__main__":
